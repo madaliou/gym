@@ -1,11 +1,10 @@
 import "server-only";
-import nodemailer from "nodemailer";
 import { APP_NAME } from "@/lib/config";
 import type { EmailDelivery } from "@/lib/email/types";
 
 export type { EmailDelivery };
 
-function smtpConfig() {
+function smtpSettings() {
   const host = process.env.SMTP_HOST?.trim();
   const from = process.env.SMTP_FROM?.trim();
   const port = Number(process.env.SMTP_PORT ?? "587");
@@ -19,12 +18,10 @@ function smtpConfig() {
 
   return {
     from,
-    transporter: nodemailer.createTransport({
-      host,
-      port,
-      secure: process.env.SMTP_SECURE === "true" || port === 465,
-      auth: user && pass ? { user, pass } : undefined,
-    }),
+    host,
+    port,
+    secure: process.env.SMTP_SECURE === "true" || port === 465,
+    auth: user && pass ? { user, pass } : undefined,
   };
 }
 
@@ -39,15 +36,22 @@ export async function sendClubEmail(input: {
     return { status: "skipped", reason: "missing_recipient" };
   }
 
-  const config = smtpConfig();
+  const settings = smtpSettings();
 
-  if (!config) {
+  if (!settings) {
     return { status: "skipped", reason: "not_configured" };
   }
 
   try {
-    await config.transporter.sendMail({
-      from: config.from.includes("<") ? config.from : `${APP_NAME} <${config.from}>`,
+    const nodemailer = (await import("nodemailer")).default;
+    const transporter = nodemailer.createTransport({
+      host: settings.host,
+      port: settings.port,
+      secure: settings.secure,
+      auth: settings.auth,
+    });
+    await transporter.sendMail({
+      from: settings.from.includes("<") ? settings.from : `${APP_NAME} <${settings.from}>`,
       to: recipient,
       subject: input.subject,
       text: input.text,

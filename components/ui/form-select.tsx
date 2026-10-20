@@ -31,12 +31,11 @@ export function FormSelect({
   className,
 }: FormSelectProps) {
   const labels = Object.fromEntries(options.map((option) => [option.value, option.label]));
+  const selected = value ?? defaultValue ?? options[0]?.value ?? "";
 
   return (
     <Select.Root
-      name={name}
-      value={value}
-      defaultValue={value === undefined ? defaultValue : undefined}
+      value={selected}
       modal={false}
       onValueChange={(next) => {
         if (typeof next === "string") {
@@ -44,6 +43,7 @@ export function FormSelect({
         }
       }}
     >
+      <input type="hidden" name={name} value={selected} />
       <Select.Trigger
         id={id}
         className={cn(
@@ -57,7 +57,7 @@ export function FormSelect({
         aria-invalid={invalid}
       >
         <Select.Value className="min-w-0 flex-1 truncate">
-          {(value: string) => labels[value] ?? value}
+          {(current: string) => labels[current] ?? current}
         </Select.Value>
         <Select.Icon className="text-muted-foreground">
           <ChevronDown aria-hidden="true" className="size-4" />

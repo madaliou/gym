@@ -16,6 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { updateMember } from "@/lib/members/actions";
+import { appendTextFields } from "@/lib/members/form-data";
 import type { MemberEditable } from "@/lib/members/types";
 import { memberPhotoClientError } from "@/lib/storage/image-rules";
 import {
@@ -122,10 +123,7 @@ export function EditMemberDialog({ member, open, onOpenChange }: EditMemberDialo
     }
 
     const formData = new FormData();
-
-    for (const [field, value] of Object.entries(values)) {
-      formData.set(field, value);
-    }
+    appendTextFields(formData, values);
 
     if (photo) {
       formData.set("photo", photo);
@@ -154,6 +152,9 @@ export function EditMemberDialog({ member, open, onOpenChange }: EditMemberDialo
     }
 
     toast.success("La fiche du membre a été mise à jour.");
+    if (result.photoWarning) {
+      toast.message(result.photoWarning);
+    }
     onOpenChange(false);
     router.refresh();
   }

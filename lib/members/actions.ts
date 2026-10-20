@@ -27,7 +27,7 @@ import {
 } from "@/lib/validations/member";
 
 export type MemberMutationResult =
-  | { ok: true; email?: EmailDelivery; whatsAppHref?: string | null }
+  | { ok: true; email?: EmailDelivery; whatsAppHref?: string | null; photoWarning?: string }
   | {
       ok: false;
       message: string;
@@ -45,11 +45,11 @@ function readFormValues(formData: FormData) {
     lastName: readField(formData, "lastName"),
     phone: readField(formData, "phone"),
     email: readField(formData, "email"),
-    gender: readField(formData, "gender"),
+    gender: readField(formData, "gender") || "UNSPECIFIED",
     dateOfBirth: readField(formData, "dateOfBirth"),
     address: readField(formData, "address"),
     notes: readField(formData, "notes"),
-    subscriptionMonths: readField(formData, "subscriptionMonths"),
+    subscriptionMonths: readField(formData, "subscriptionMonths") || "1",
     joinedAt: readField(formData, "joinedAt"),
   };
 }
@@ -65,6 +65,38 @@ function fieldErrorsFromZod(issues: { path: PropertyKey[]; message: string }[]) 
   }
 
   return fieldErrors;
+}
+
+function isUnwritableFilesystem(error: unknown) {
+  const code =
+    typeof error === "object" && error !== null && "code" in error ? String(error.code) : "";
+  return code === "EROFS" || code === "EACCES" || code === "EPERM";
+}
+
+async function persistMemberPhoto(photo: FormDataEntryValue | null) {
+  if (!(photo instanceof File) || photo.size === 0) {
+    return { photoUrl: null as string | null, storedPathname: null as string | null };
+  }
+
+  try {
+    const saved = await saveMemberPhoto(photo);
+    return { photoUrl: saved.url, storedPathname: saved.pathname };
+  } catch (error) {
+    if (error instanceof PhotoStorageError || (error instanceof Error && error.name === "PhotoStorageError")) {
+      throw error;
+    }
+
+    if (isUnwritableFilesystem(error)) {
+      return {
+        photoUrl: null,
+        storedPathname: null,
+        warning:
+          "La fiche a été enregistrée, mais la photo n'a pas pu être stockée sur l'hébergement actuel.",
+      };
+    }
+
+    throw error;
+  }
 }
 
 function revalidateMembers() {
@@ -127,16 +159,11 @@ export async function createMember(formData: FormData): Promise<MemberMutationRe
 
   const photo = formData.get("photo");
   let storedPathname: string | null = null;
-  let photoUrl: string | null = null;
 
   try {
-    if (photo instanceof File && photo.size > 0) {
-      const saved = await saveMemberPhoto(photo);
-      storedPathname = saved.pathname;
-      photoUrl = saved.url;
-    }
-
-    const input = toCreateMemberInput(parsed.data, photoUrl);
+    const persisted = await persistMemberPhoto(photo);
+    storedPathname = persisted.storedPathname;
+    const input = toCreateMemberInput(parsed.data, persisted.photoUrl);
     const created = await createMemberRecord(input);
     await writeAuditLog({
       userId: actor.id,
@@ -161,6 +188,7 @@ export async function createMember(formData: FormData): Promise<MemberMutationRe
     return {
       ok: true,
       email,
+      photoWarning: persisted.warning,
       whatsAppHref: subscriptionWhatsAppHref(notice),
     };
   } catch (error) {
@@ -185,7 +213,7 @@ export async function updateMember(memberId: string, formData: FormData): Promis
     lastName: readField(formData, "lastName"),
     phone: readField(formData, "phone"),
     email: readField(formData, "email"),
-    gender: readField(formData, "gender"),
+    gender: readField(formData, "gender") || "UNSPECIFIED",
     dateOfBirth: readField(formData, "dateOfBirth"),
     address: readField(formData, "address"),
     notes: readField(formData, "notes"),
@@ -202,15 +230,13 @@ export async function updateMember(memberId: string, formData: FormData): Promis
 
   const photo = formData.get("photo");
   let storedPathname: string | null = null;
-  let photoUrl: string | undefined;
+  let photoWarning: string | undefined;
 
   try {
-    if (photo instanceof File && photo.size > 0) {
-      const saved = await saveMemberPhoto(photo);
-      storedPathname = saved.pathname;
-      photoUrl = saved.url;
-    }
-
+    const persisted = await persistMemberPhoto(photo);
+    storedPathname = persisted.storedPathname;
+    photoWarning = persisted.warning;
+    const photoUrl = persisted.photoUrl ?? undefined;
     const updated = await updateMemberRecord(memberId, toUpdateMemberInput(parsed.data, photoUrl));
     await writeAuditLog({
       userId: actor.id,
@@ -237,7 +263,7 @@ export async function updateMember(memberId: string, formData: FormData): Promis
   }
 
   revalidateMembers();
-  return { ok: true };
+  return { ok: true, photoWarning };
 }
 
 export async function deleteMember(memberId: string): Promise<MemberMutationResult> {

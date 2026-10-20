@@ -1,4 +1,4 @@
-import Image from "next/image";
+import { MemberPhoto } from "@/components/media/member-photo";
 import { MemberRowActions } from "@/components/members/member-row-actions";
 import { Badge } from "@/components/ui/badge";
 import { DEFAULT_TIMEZONE } from "@/lib/config";
@@ -74,24 +74,11 @@ export function MemberList({ members }: MemberListProps) {
             <tr key={member.id} className="border-b border-border/70 last:border-0">
               <th scope="row" className="px-4 py-3 font-medium">
                 <span className="flex items-center gap-3">
-                  {member.photoUrl ? (
-                    <Image
-                      src={member.photoUrl}
-                      alt=""
-                      width={36}
-                      height={36}
-                      unoptimized
-                      className="size-9 rounded-full object-cover ring-1 ring-foreground/10"
-                    />
-                  ) : (
-                    <span
-                      aria-hidden="true"
-                      className="flex size-9 items-center justify-center rounded-full bg-muted text-xs text-muted-foreground"
-                    >
-                      {member.firstName.charAt(0)}
-                      {member.lastName.charAt(0)}
-                    </span>
-                  )}
+                  <MemberPhoto
+                    src={member.photoUrl}
+                    name={`${member.firstName} ${member.lastName}`}
+                    size="sm"
+                  />
                   {member.firstName} {member.lastName}
                 </span>
               </th>

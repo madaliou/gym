@@ -1,5 +1,5 @@
-import Image from "next/image";
 import { BirthdayActions } from "@/components/birthdays/birthday-actions";
+import { MemberPhoto } from "@/components/media/member-photo";
 import type { BirthdayListItem } from "@/lib/services/birthday-service";
 
 type BirthdayListProps = {
@@ -16,24 +16,11 @@ export function BirthdayList({ items, showDate = true }: BirthdayListProps) {
           className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between"
         >
           <div className="flex min-w-0 items-center gap-3">
-            {item.photoUrl ? (
-              <Image
-                src={item.photoUrl}
-                alt=""
-                width={44}
-                height={44}
-                unoptimized
-                className="size-11 rounded-full object-cover ring-1 ring-foreground/10"
-              />
-            ) : (
-              <span
-                aria-hidden="true"
-                className="flex size-11 items-center justify-center rounded-full bg-muted text-xs text-muted-foreground"
-              >
-                {item.firstName.charAt(0)}
-                {item.lastName.charAt(0)}
-              </span>
-            )}
+            <MemberPhoto
+              src={item.photoUrl}
+              name={`${item.firstName} ${item.lastName}`}
+              size="md"
+            />
             <div className="min-w-0">
               <p className="font-medium">
                 {item.firstName} {item.lastName}

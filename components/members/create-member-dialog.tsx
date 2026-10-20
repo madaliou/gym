@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { toastEmailDelivery } from "@/components/email/delivery-toast";
 import { createMember } from "@/lib/members/actions";
+import { appendTextFields } from "@/lib/members/form-data";
 import { todayDateInputValue } from "@/lib/members/today";
 import { memberPhotoClientError } from "@/lib/storage/image-rules";
 import {
@@ -125,10 +126,7 @@ export function CreateMemberDialog({ defaultOpen = false }: CreateMemberDialogPr
     }
 
     const formData = new FormData();
-
-    for (const [field, value] of Object.entries(values)) {
-      formData.set(field, value);
-    }
+    appendTextFields(formData, values);
 
     if (photo) {
       formData.set("photo", photo);
@@ -157,6 +155,9 @@ export function CreateMemberDialog({ defaultOpen = false }: CreateMemberDialogPr
     }
 
     toast.success("Le membre a été ajouté avec succès.");
+    if (result.photoWarning) {
+      toast.message(result.photoWarning);
+    }
     toastEmailDelivery(result.email);
     reset(createDefaultValues());
     clearPhoto();

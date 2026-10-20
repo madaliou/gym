@@ -1,6 +1,7 @@
 "use client";
 
 import { Camera, FolderOpen } from "lucide-react";
+import { MemberPhoto } from "@/components/media/member-photo";
 import { Controller, type Control, type FieldErrors, type UseFormRegister } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { FormSelect } from "@/components/ui/form-select";
@@ -133,12 +134,7 @@ export function MemberProfileFields({
       >
         <div className="flex flex-wrap items-center gap-3">
           {previewUrl ? (
-            <div
-              role="img"
-              aria-label="Aperçu de la photo"
-              className="size-16 shrink-0 rounded-xl bg-cover bg-center ring-1 ring-foreground/10"
-              style={{ backgroundImage: `url("${previewUrl}")` }}
-            />
+            <MemberPhoto src={previewUrl} name="Aperçu de la photo" size="lg" />
           ) : null}
           <input
             ref={cameraInputRef}
