@@ -59,6 +59,7 @@ export function EditMemberDialog({ member, open, onOpenChange }: EditMemberDialo
 
   const {
     register,
+    control,
     handleSubmit,
     reset,
     setError,
@@ -170,6 +171,7 @@ export function EditMemberDialog({ member, open, onOpenChange }: EditMemberDialo
           <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
             <MemberProfileFields
               idPrefix={`edit-${member.id}`}
+              control={control}
               register={register}
               errors={errors}
               photoError={photoError}

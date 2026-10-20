@@ -1,8 +1,9 @@
 "use client";
 
 import { Camera, FolderOpen } from "lucide-react";
-import type { FieldErrors, UseFormRegister } from "react-hook-form";
+import { Controller, type Control, type FieldErrors, type UseFormRegister } from "react-hook-form";
 import { Button } from "@/components/ui/button";
+import { FormSelect } from "@/components/ui/form-select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,13 +18,11 @@ import {
   type UpdateMemberFormValues,
 } from "@/lib/validations/member";
 
-export const memberSelectClassName =
-  "h-11 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:bg-input/30 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40";
-
 type MemberFormValues = CreateMemberFormValues | UpdateMemberFormValues;
 
 type MemberProfileFieldsProps = {
   idPrefix: string;
+  control: Control<CreateMemberFormValues> | Control<UpdateMemberFormValues>;
   register: UseFormRegister<CreateMemberFormValues> | UseFormRegister<UpdateMemberFormValues>;
   errors: FieldErrors<MemberFormValues>;
   includeSubscription?: boolean;
@@ -37,6 +36,7 @@ type MemberProfileFieldsProps = {
 
 export function MemberProfileFields({
   idPrefix,
+  control,
   register,
   errors,
   includeSubscription = false,
@@ -47,8 +47,9 @@ export function MemberProfileFields({
   fileInputRef,
   onPhotoChange,
 }: MemberProfileFieldsProps) {
-  const createRegister = register as UseFormRegister<CreateMemberFormValues>;
   const fields = register as UseFormRegister<UpdateMemberFormValues>;
+  const profileControl = control as Control<UpdateMemberFormValues>;
+  const createControl = control as Control<CreateMemberFormValues>;
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">
@@ -95,19 +96,23 @@ export function MemberProfileFields({
         />
       </Field>
       <Field id={`${idPrefix}-gender`} label="Genre" error={errors.gender?.message}>
-        <select
-          id={`${idPrefix}-gender`}
-          className={cn(memberSelectClassName, errors.gender && "border-destructive")}
-          aria-invalid={Boolean(errors.gender)}
-          aria-describedby={errors.gender ? `${idPrefix}-gender-error` : undefined}
-          {...fields("gender")}
-        >
-          {memberGenders.map((gender) => (
-            <option key={gender} value={gender}>
-              {memberGenderLabels[gender]}
-            </option>
-          ))}
-        </select>
+        <Controller
+          name="gender"
+          control={profileControl}
+          render={({ field }) => (
+            <FormSelect
+              id={`${idPrefix}-gender`}
+              name="gender"
+              value={field.value}
+              onValueChange={field.onChange}
+              invalid={Boolean(errors.gender)}
+              options={memberGenders.map((gender) => ({
+                value: gender,
+                label: memberGenderLabels[gender],
+              }))}
+            />
+          )}
+        />
       </Field>
       <Field id={`${idPrefix}-dateOfBirth`} label="Date de naissance" error={errors.dateOfBirth?.message}>
         <Input
@@ -190,26 +195,23 @@ export function MemberProfileFields({
           required
           error={"subscriptionMonths" in errors ? errors.subscriptionMonths?.message : undefined}
         >
-          <select
-            id={`${idPrefix}-subscriptionMonths`}
-            className={cn(
-              memberSelectClassName,
-              "subscriptionMonths" in errors && errors.subscriptionMonths && "border-destructive",
+          <Controller
+            name="subscriptionMonths"
+            control={createControl}
+            render={({ field }) => (
+              <FormSelect
+                id={`${idPrefix}-subscriptionMonths`}
+                name="subscriptionMonths"
+                value={field.value}
+                onValueChange={field.onChange}
+                invalid={Boolean("subscriptionMonths" in errors && errors.subscriptionMonths)}
+                options={subscriptionMonthValues.map((months) => ({
+                  value: months,
+                  label: subscriptionMonthsLabel(Number(months)),
+                }))}
+              />
             )}
-            aria-invalid={Boolean("subscriptionMonths" in errors && errors.subscriptionMonths)}
-            aria-describedby={
-              "subscriptionMonths" in errors && errors.subscriptionMonths
-                ? `${idPrefix}-subscriptionMonths-error`
-                : undefined
-            }
-            {...createRegister("subscriptionMonths")}
-          >
-            {subscriptionMonthValues.map((months) => (
-              <option key={months} value={months}>
-                {subscriptionMonthsLabel(Number(months))}
-              </option>
-            ))}
-          </select>
+          />
         </Field>
       ) : null}
       <Field

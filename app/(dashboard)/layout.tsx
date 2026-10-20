@@ -1,11 +1,14 @@
 import { DashboardShell } from "@/components/layout/dashboard-shell";
+import { requireSession } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <DashboardShell>{children}</DashboardShell>;
+  const user = await requireSession();
+
+  return <DashboardShell user={user}>{children}</DashboardShell>;
 }

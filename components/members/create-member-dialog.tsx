@@ -16,6 +16,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { toastEmailDelivery } from "@/components/email/delivery-toast";
 import { createMember } from "@/lib/members/actions";
 import { todayDateInputValue } from "@/lib/members/today";
 import { memberPhotoClientError } from "@/lib/storage/image-rules";
@@ -60,6 +61,7 @@ export function CreateMemberDialog({ defaultOpen = false }: CreateMemberDialogPr
 
   const {
     register,
+    control,
     handleSubmit,
     reset,
     setError,
@@ -155,6 +157,7 @@ export function CreateMemberDialog({ defaultOpen = false }: CreateMemberDialogPr
     }
 
     toast.success("Le membre a été ajouté avec succès.");
+    toastEmailDelivery(result.email);
     reset(createDefaultValues());
     clearPhoto();
     setOpen(false);
@@ -181,6 +184,7 @@ export function CreateMemberDialog({ defaultOpen = false }: CreateMemberDialogPr
           <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
             <MemberProfileFields
               idPrefix="create"
+              control={control}
               register={register}
               errors={errors}
               includeSubscription

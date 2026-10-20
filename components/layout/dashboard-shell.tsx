@@ -2,16 +2,23 @@
 
 import { Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { AccountMenu } from "@/components/layout/account-menu";
 import { BrandMark } from "@/components/layout/brand-mark";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Button } from "@/components/ui/button";
+import type { UserRole } from "@/lib/validations/user";
 
 type DashboardShellProps = {
   children: React.ReactNode;
+  user: {
+    firstName: string;
+    lastName: string;
+    role: UserRole;
+  };
 };
 
-export function DashboardShell({ children }: DashboardShellProps) {
+export function DashboardShell({ children, user }: DashboardShellProps) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -36,7 +43,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
           <BrandMark />
         </div>
         <div className="flex-1 overflow-y-auto px-3 pb-6">
-          <SidebarNav />
+          <SidebarNav role={user.role} />
         </div>
       </aside>
 
@@ -68,7 +75,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
               </Button>
             </div>
             <div className="flex-1 overflow-y-auto px-3 pb-6">
-              <SidebarNav onNavigate={() => setMenuOpen(false)} />
+              <SidebarNav role={user.role} onNavigate={() => setMenuOpen(false)} />
             </div>
           </aside>
         </div>
@@ -87,8 +94,9 @@ export function DashboardShell({ children }: DashboardShellProps) {
           >
             <Menu aria-hidden="true" />
           </Button>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
             <ThemeToggle />
+            <AccountMenu firstName={user.firstName} lastName={user.lastName} role={user.role} />
           </div>
         </header>
         <main className="flex-1 px-4 py-6 sm:px-6 md:px-8 md:py-8">{children}</main>

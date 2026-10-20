@@ -1,12 +1,5 @@
-import { WorkspacePage } from "@/components/dashboard/workspace-page";
+import { BirthdaysScreen } from "@/components/birthdays/birthdays-screen";
 
 export default function BirthdaysPage() {
-  return (
-    <WorkspacePage
-      title="Anniversaires"
-      description="Adhérents qui fêtent leur anniversaire aujourd'hui."
-      emptyTitle="Aucun anniversaire aujourd'hui."
-      emptyDescription="Les membres concernés apparaîtront ici le jour venu."
-    />
-  );
+  return <BirthdaysScreen />;
 }

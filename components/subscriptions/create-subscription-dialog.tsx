@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { todayDateInputValue } from "@/lib/members/today";
 import { formatClubDate, parseIsoDate, subscriptionEndDate } from "@/lib/subscriptions/dates";
+import { toastEmailDelivery } from "@/components/email/delivery-toast";
 import { createSubscription } from "@/lib/subscriptions/actions";
 import type { MemberOption } from "@/lib/subscriptions/types";
 import { subscriptionMonthsLabel, subscriptionMonthValues } from "@/lib/validations/member";
@@ -59,6 +60,7 @@ export function CreateSubscriptionDialog({ members }: CreateSubscriptionDialogPr
     }
 
     toast.success("La souscription a été enregistrée.");
+    toastEmailDelivery(result.email);
     setOpen(false);
     resetForm();
   }
@@ -82,7 +84,7 @@ export function CreateSubscriptionDialog({ members }: CreateSubscriptionDialogPr
         <DialogHeader>
           <DialogTitle>Nouvelle souscription</DialogTitle>
           <DialogDescription>
-            Choisissez le membre, la durée et la date de début. La fin est calculée automatiquement.
+            Choisissez le membre, la durée et la date de début. Un e-mail de confirmation part si SMTP est configuré.
           </DialogDescription>
         </DialogHeader>
         <form className="grid gap-4" onSubmit={onSubmit}>

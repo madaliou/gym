@@ -1,12 +1,7 @@
-import { WorkspacePage } from "@/components/dashboard/workspace-page";
+import { UsersScreen } from "@/components/users/users-screen";
+import { requirePathAccess } from "@/lib/auth/session";
 
-export default function UsersPage() {
-  return (
-    <WorkspacePage
-      title="Utilisateurs"
-      description="Comptes de l'équipe, rôles et derniers accès."
-      emptyTitle="Aucun utilisateur."
-      emptyDescription="Les comptes administratifs apparaîtront dans cette liste."
-    />
-  );
+export default async function UsersPage() {
+  await requirePathAccess("/dashboard/users");
+  return <UsersScreen />;
 }

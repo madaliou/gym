@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { AuthRequiredError, ForbiddenError, requireMemberMutation } from "@/lib/auth/session";
+import { writeAuditLog } from "@/lib/services/audit-service";
 import {
   createMemberRecord,
   deleteMemberRecord,
@@ -13,6 +15,10 @@ import {
   saveMemberPhoto,
   storedPathFromPublicUrl,
 } from "@/lib/storage/local-folder";
+import { sendSubscriptionNotice } from "@/lib/email/subscription";
+import type { EmailDelivery } from "@/lib/email/types";
+import { subscriptionEndDate } from "@/lib/subscriptions/dates";
+import { subscriptionWhatsAppHref } from "@/lib/subscriptions/message";
 import {
   createMemberFormSchema,
   toCreateMemberInput,
@@ -21,7 +27,7 @@ import {
 } from "@/lib/validations/member";
 
 export type MemberMutationResult =
-  | { ok: true }
+  | { ok: true; email?: EmailDelivery; whatsAppHref?: string | null }
   | {
       ok: false;
       message: string;
@@ -66,6 +72,7 @@ function revalidateMembers() {
   revalidatePath("/dashboard/members");
   revalidatePath("/dashboard/subscriptions");
   revalidatePath("/dashboard/subscriptions/expiring");
+  revalidatePath("/dashboard/audit-logs");
 }
 
 function mutationFailure(error: unknown, storedPathname: string | null): MemberMutationResult {
@@ -91,13 +98,23 @@ function mutationFailure(error: unknown, storedPathname: string | null): MemberM
 
   return {
     ok: false,
-    message: error instanceof Error && error.message === "Ce membre est introuvable."
-      ? error.message
-      : "Une erreur est survenue.",
+    message:
+      error instanceof AuthRequiredError || error instanceof ForbiddenError
+        ? error.message
+        : error instanceof Error && error.message === "Ce membre est introuvable."
+          ? error.message
+          : "Une erreur est survenue.",
   };
 }
 
 export async function createMember(formData: FormData): Promise<MemberMutationResult> {
+  let actor;
+  try {
+    actor = await requireMemberMutation();
+  } catch (error) {
+    return mutationFailure(error, null);
+  }
+
   const parsed = createMemberFormSchema.safeParse(readFormValues(formData));
 
   if (!parsed.success) {
@@ -119,7 +136,33 @@ export async function createMember(formData: FormData): Promise<MemberMutationRe
       photoUrl = saved.url;
     }
 
-    await createMemberRecord(toCreateMemberInput(parsed.data, photoUrl));
+    const input = toCreateMemberInput(parsed.data, photoUrl);
+    const created = await createMemberRecord(input);
+    await writeAuditLog({
+      userId: actor.id,
+      action: "MEMBER_CREATE",
+      entity: "Member",
+      entityId: created.id,
+      metadata: {
+        name: `${parsed.data.firstName} ${parsed.data.lastName}`,
+        phone: parsed.data.phone,
+      },
+    });
+    const notice = {
+      firstName: input.firstName,
+      phone: input.phone,
+      email: input.email,
+      durationMonths: input.subscriptionMonths,
+      startDate: input.joinedAt,
+      endDate: subscriptionEndDate(input.joinedAt, input.subscriptionMonths),
+    };
+    const email = await sendSubscriptionNotice(notice);
+    revalidateMembers();
+    return {
+      ok: true,
+      email,
+      whatsAppHref: subscriptionWhatsAppHref(notice),
+    };
   } catch (error) {
     if (storedPathname) {
       await deleteStoredFile(storedPathname);
@@ -127,12 +170,16 @@ export async function createMember(formData: FormData): Promise<MemberMutationRe
 
     return mutationFailure(error, storedPathname);
   }
-
-  revalidateMembers();
-  return { ok: true };
 }
 
 export async function updateMember(memberId: string, formData: FormData): Promise<MemberMutationResult> {
+  let actor;
+  try {
+    actor = await requireMemberMutation();
+  } catch (error) {
+    return mutationFailure(error, null);
+  }
+
   const parsed = updateMemberFormSchema.safeParse({
     firstName: readField(formData, "firstName"),
     lastName: readField(formData, "lastName"),
@@ -165,6 +212,15 @@ export async function updateMember(memberId: string, formData: FormData): Promis
     }
 
     const updated = await updateMemberRecord(memberId, toUpdateMemberInput(parsed.data, photoUrl));
+    await writeAuditLog({
+      userId: actor.id,
+      action: "MEMBER_UPDATE",
+      entity: "Member",
+      entityId: memberId,
+      metadata: {
+        name: `${parsed.data.firstName} ${parsed.data.lastName}`,
+      },
+    });
 
     if (storedPathname && updated.previousPhotoUrl && updated.previousPhotoUrl !== photoUrl) {
       const previousPath = storedPathFromPublicUrl(updated.previousPhotoUrl);
@@ -186,7 +242,14 @@ export async function updateMember(memberId: string, formData: FormData): Promis
 
 export async function deleteMember(memberId: string): Promise<MemberMutationResult> {
   try {
+    const actor = await requireMemberMutation();
     const deleted = await deleteMemberRecord(memberId);
+    await writeAuditLog({
+      userId: actor.id,
+      action: "MEMBER_DELETE",
+      entity: "Member",
+      entityId: memberId,
+    });
     const photoPath = storedPathFromPublicUrl(deleted.photoUrl);
     if (photoPath) {
       await deleteStoredFile(photoPath);

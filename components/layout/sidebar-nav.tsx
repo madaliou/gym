@@ -6,24 +6,33 @@ import {
   isNavigationItemActive,
   navigationGroups,
 } from "@/components/layout/navigation";
+import { navigationRolesForHref } from "@/lib/auth/permissions";
+import type { UserRole } from "@/lib/validations/user";
 import { cn } from "@/lib/utils";
 
 type SidebarNavProps = {
+  role: UserRole;
   onNavigate?: () => void;
 };
 
-export function SidebarNav({ onNavigate }: SidebarNavProps) {
+export function SidebarNav({ role, onNavigate }: SidebarNavProps) {
   const pathname = usePathname();
 
   return (
     <nav aria-label="Navigation de l'application" className="flex flex-col gap-6">
-      {navigationGroups.map((group) => (
+      {navigationGroups.map((group) => {
+        const items = group.items.filter((item) => navigationRolesForHref(item.href).includes(role));
+        if (items.length === 0) {
+          return null;
+        }
+
+        return (
         <div key={group.label} className="flex flex-col gap-1">
           <p className="px-3 text-[11px] font-medium tracking-[0.14em] text-muted-foreground uppercase">
             {group.label}
           </p>
           <ul className="flex flex-col gap-0.5">
-            {group.items.map((item) => {
+            {items.map((item) => {
               const active = isNavigationItemActive(pathname, item.href);
               const Icon = item.icon;
 
@@ -48,7 +57,8 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
             })}
           </ul>
         </div>
-      ))}
+        );
+      })}
     </nav>
   );
 }

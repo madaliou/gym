@@ -267,7 +267,7 @@ export async function createSubscriptionRecord(input: {
   const prisma = getPrismaClient();
   const member = await prisma.member.findUnique({
     where: { id: input.memberId },
-    select: { id: true, status: true },
+    select: { id: true, status: true, firstName: true, phone: true, email: true },
   });
 
   if (!member || member.status === "ARCHIVED") {
@@ -290,11 +290,21 @@ export async function createSubscriptionRecord(input: {
       endDate,
       status: subscriptionStatusForPeriod(input.startDate, endDate, today),
     },
-    select: { id: true },
+    select: {
+      id: true,
+      durationMonths: true,
+      startDate: true,
+      endDate: true,
+    },
   });
 
   await syncMemberDuration(input.memberId);
-  return subscription;
+  return {
+    ...subscription,
+    firstName: member.firstName,
+    phone: member.phone,
+    email: member.email,
+  };
 }
 
 export async function renewSubscriptionRecord(subscriptionId: string, durationMonths: number) {

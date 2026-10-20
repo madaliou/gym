@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { toastEmailDelivery } from "@/components/email/delivery-toast";
 import { expirationReminderMessage, whatsAppUrl } from "@/lib/reminders/expiration";
 import { formatClubDate, parseIsoDate, subscriptionEndDate } from "@/lib/subscriptions/dates";
 import {
@@ -73,6 +74,7 @@ export function SubscriptionRowActions({ subscription }: SubscriptionRowActionsP
       }
 
       toast.success("La souscription a été renouvelée.");
+      toastEmailDelivery(result.email);
       setRenewOpen(false);
     });
   }
