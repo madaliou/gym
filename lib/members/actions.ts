@@ -157,7 +157,11 @@ export async function createMember(formData: FormData): Promise<MemberMutationRe
     const persisted = await persistMemberPhoto(photo);
     storedPathname = persisted.storedPathname;
     const input = toCreateMemberInput(parsed.data, persisted.photoUrl);
-    const created = await createMemberRecord(input);
+    const created = await createMemberRecord({
+      ...input,
+      photoData: persisted.photoData ?? undefined,
+      photoMime: persisted.photoMime ?? undefined,
+    });
     await writeAuditLog({
       userId: actor.id,
       action: "MEMBER_CREATE",
@@ -181,7 +185,6 @@ export async function createMember(formData: FormData): Promise<MemberMutationRe
     return {
       ok: true,
       email,
-      photoWarning: persisted.warning,
       whatsAppHref: subscriptionWhatsAppHref(notice),
     };
   } catch (error) {
@@ -223,14 +226,16 @@ export async function updateMember(memberId: string, formData: FormData): Promis
 
   const photo = formData.get("photo");
   let storedPathname: string | null = null;
-  let photoWarning: string | undefined;
 
   try {
     const persisted = await persistMemberPhoto(photo);
     storedPathname = persisted.storedPathname;
-    photoWarning = persisted.warning;
     const photoUrl = persisted.photoUrl ?? undefined;
-    const updated = await updateMemberRecord(memberId, toUpdateMemberInput(parsed.data, photoUrl));
+    const updated = await updateMemberRecord(memberId, {
+      ...toUpdateMemberInput(parsed.data, photoUrl),
+      photoData: persisted.photoData ?? undefined,
+      photoMime: persisted.photoMime ?? undefined,
+    });
     await writeAuditLog({
       userId: actor.id,
       action: "MEMBER_UPDATE",
@@ -253,7 +258,7 @@ export async function updateMember(memberId: string, formData: FormData): Promis
   }
 
   revalidateMembers();
-  return { ok: true, photoWarning };
+  return { ok: true };
 }
 
 export async function deleteMember(memberId: string): Promise<MemberMutationResult> {

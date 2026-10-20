@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE `Member` ADD COLUMN `photoData` MEDIUMBLOB NULL,
+    ADD COLUMN `photoMime` VARCHAR(191) NULL;

@@ -120,6 +120,8 @@ export type CreateMemberInput = {
   gender: (typeof memberGenders)[number];
   dateOfBirth: Date | null;
   photoUrl: string | null;
+  photoData?: Uint8Array | null;
+  photoMime?: string | null;
   address: string | null;
   city: string | null;
   emergencyContactName: string | null;
@@ -147,6 +149,8 @@ export type UpdateMemberInput = {
   gender: (typeof memberGenders)[number];
   dateOfBirth: Date | null;
   photoUrl?: string | null;
+  photoData?: Uint8Array | null;
+  photoMime?: string | null;
   address: string | null;
   notes: string | null;
   joinedAt: Date;

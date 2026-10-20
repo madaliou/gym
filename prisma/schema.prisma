@@ -48,6 +48,8 @@ model Member {
   gender                MemberGender @default(UNSPECIFIED)
   dateOfBirth           DateTime?    @db.Date
   photoUrl              String?      @db.Text
+  photoData             Bytes?       @db.MediumBlob
+  photoMime             String?
   address               String?
   city                  String?
   emergencyContactName  String?

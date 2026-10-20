@@ -5,6 +5,7 @@ import {
   subscriptionStatusForPeriod,
   todayUtcDate,
 } from "@/lib/subscriptions/dates";
+import { memberPhotoDisplayUrl } from "@/lib/members/photo-url";
 import type { CreateMemberInput, UpdateMemberInput } from "@/lib/validations/member";
 import type { SubscriptionStatus } from "@/lib/validations/subscription";
 
@@ -164,7 +165,7 @@ export async function createMemberRecord(input: CreateMemberInput) {
   const today = todayUtcDate();
   const endDate = subscriptionEndDate(input.joinedAt, input.subscriptionMonths);
 
-  return prisma.member.create({
+  const created = await prisma.member.create({
     data: {
       firstName: input.firstName,
       lastName: input.lastName,
@@ -173,6 +174,8 @@ export async function createMemberRecord(input: CreateMemberInput) {
       gender: input.gender,
       dateOfBirth: input.dateOfBirth,
       photoUrl: input.photoUrl,
+      photoData: input.photoData ? Buffer.from(input.photoData) : undefined,
+      photoMime: input.photoMime,
       address: input.address,
       city: input.city,
       emergencyContactName: input.emergencyContactName,
@@ -192,6 +195,15 @@ export async function createMemberRecord(input: CreateMemberInput) {
     },
     select: { id: true },
   });
+
+  if (input.photoData && !input.photoUrl) {
+    await prisma.member.update({
+      where: { id: created.id },
+      data: { photoUrl: memberPhotoDisplayUrl({ id: created.id, photoUrl: null, photoMime: input.photoMime }) },
+    });
+  }
+
+  return created;
 }
 
 export async function updateMemberRecord(id: string, input: UpdateMemberInput) {
@@ -207,6 +219,8 @@ export async function updateMemberRecord(id: string, input: UpdateMemberInput) {
 
   await assertUniqueMemberFields(input, id);
 
+  const replacingPhoto = Boolean(input.photoData || input.photoUrl);
+
   await prisma.member.update({
     where: { id },
     data: {
@@ -216,7 +230,13 @@ export async function updateMemberRecord(id: string, input: UpdateMemberInput) {
       email: input.email,
       gender: input.gender,
       dateOfBirth: input.dateOfBirth,
-      ...(input.photoUrl !== undefined ? { photoUrl: input.photoUrl } : {}),
+      ...(replacingPhoto
+        ? {
+            photoUrl: input.photoUrl ?? memberPhotoDisplayUrl({ id, photoUrl: null, photoMime: input.photoMime }),
+            photoData: input.photoData ? Buffer.from(input.photoData) : null,
+            photoMime: input.photoMime ?? null,
+          }
+        : {}),
       address: input.address,
       notes: input.notes,
       joinedAt: input.joinedAt,
