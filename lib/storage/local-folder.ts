@@ -13,7 +13,7 @@ function uploadsRoot() {
   return path.resolve(/* turbopackIgnore: true */ process.cwd(), configured);
 }
 
-function detectImageExtension(bytes: Uint8Array) {
+function detectImageExtension(bytes: Uint8Array): "jpg" | "png" | "webp" | null {
   if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
     return "jpg";
   }
@@ -45,7 +45,7 @@ function detectImageExtension(bytes: Uint8Array) {
   return null;
 }
 
-export async function saveMemberPhoto(file: File): Promise<SavedImage> {
+export async function readValidatedMemberPhoto(file: File) {
   if (file.size === 0 || file.size > MEMBER_PHOTO_MAX_BYTES) {
     throw new PhotoStorageError("La photo ne doit pas dépasser 5 Mo.");
   }
@@ -57,6 +57,21 @@ export async function saveMemberPhoto(file: File): Promise<SavedImage> {
     throw new PhotoStorageError("La photo doit être au format JPG, PNG ou WebP.");
   }
 
+  return { bytes, extension };
+}
+
+function isNodeFsError(error: unknown) {
+  const code =
+    typeof error === "object" && error !== null && "code" in error ? String(error.code) : "";
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    code.startsWith("E") ||
+    /read-only file system|erofs|enoent|eacces|eperm|enospc/i.test(message)
+  );
+}
+
+export async function saveMemberPhoto(file: File): Promise<SavedImage> {
+  const { bytes, extension } = await readValidatedMemberPhoto(file);
   const directory = path.join(uploadsRoot(), "members");
   const filename = `${randomUUID()}.${extension}`;
   const pathname = path.join(directory, filename);
@@ -78,8 +93,20 @@ export async function saveMemberPhoto(file: File): Promise<SavedImage> {
   };
 }
 
+export function isUnwritableFilesystem(error: unknown) {
+  return isNodeFsError(error);
+}
+
 export function storedPathFromPublicUrl(url: string | null) {
-  if (!url || !url.startsWith("/uploads/")) {
+  if (!url) {
+    return null;
+  }
+
+  if (url.startsWith("https://") || url.startsWith("http://")) {
+    return url;
+  }
+
+  if (!url.startsWith("/uploads/")) {
     return null;
   }
 

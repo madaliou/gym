@@ -54,7 +54,7 @@ export function MemberPhoto({ src, name, size = "sm", className }: MemberPhotoPr
     <DialogPrimitive.Root>
       <DialogPrimitive.Trigger
         className={cn(
-          "group relative shrink-0 overflow-hidden ring-1 ring-foreground/10 outline-none",
+          "group relative shrink-0 cursor-zoom-in overflow-hidden ring-1 ring-foreground/10 outline-none",
           "focus-visible:ring-3 focus-visible:ring-ring/50",
           thumbnailSize[size],
           className,
@@ -73,9 +73,11 @@ export function MemberPhoto({ src, name, size = "sm", className }: MemberPhotoPr
         <span className="absolute inset-0 bg-black/0 transition-colors group-hover:bg-black/25" />
       </DialogPrimitive.Trigger>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Backdrop className="fixed inset-0 z-[90] bg-black/70 duration-100 supports-backdrop-filter:backdrop-blur-sm data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0" />
-        <DialogPrimitive.Popup className="fixed top-1/2 left-1/2 z-[91] w-[min(100%-1.5rem,32rem)] -translate-x-1/2 -translate-y-1/2 outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95">
-          <DialogPrimitive.Title className="sr-only">{`Photo de ${name}`}</DialogPrimitive.Title>
+        <DialogPrimitive.Backdrop className="fixed inset-0 z-[200] bg-black/80 duration-100 supports-backdrop-filter:backdrop-blur-sm data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0" />
+        <DialogPrimitive.Popup className="fixed top-1/2 left-1/2 z-[201] w-[min(100%-1.5rem,32rem)] -translate-x-1/2 -translate-y-1/2 outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95">
+          <DialogPrimitive.Title className="sr-only">
+            {name === "Aperçu de la photo" ? "Aperçu de la photo" : `Photo de ${name}`}
+          </DialogPrimitive.Title>
           <DialogPrimitive.Description className="sr-only">
             Photo agrandie pour reconnaître le membre.
           </DialogPrimitive.Description>
@@ -86,7 +88,7 @@ export function MemberPhoto({ src, name, size = "sm", className }: MemberPhotoPr
               width={640}
               height={640}
               unoptimized
-              className="aspect-square max-h-[min(80vh,32rem)] w-full object-cover"
+              className="aspect-square max-h-[min(80vh,32rem)] w-full bg-black object-contain"
             />
             <p className="px-4 py-3 text-center text-sm font-medium">{name}</p>
           </div>

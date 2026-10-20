@@ -251,6 +251,37 @@ function prismaErrorCode(error: unknown) {
   return null;
 }
 
+function errorText(error: unknown): string {
+  if (!(error instanceof Error)) {
+    return String(error);
+  }
+
+  const cause =
+    error.cause instanceof Error
+      ? error.cause.message
+      : typeof error.cause === "object" && error.cause && "message" in error.cause
+        ? String(error.cause.message)
+        : "";
+
+  return `${error.name} ${error.message} ${cause}`;
+}
+
+function mysqlErrno(error: unknown): string | null {
+  if (typeof error !== "object" || error === null) {
+    return null;
+  }
+
+  if ("errno" in error) {
+    return String(error.errno);
+  }
+
+  if ("cause" in error && typeof error.cause === "object" && error.cause && "errno" in error.cause) {
+    return String(error.cause.errno);
+  }
+
+  return null;
+}
+
 export function uniqueMemberFieldFromError(error: unknown): UniqueMemberFieldError | null {
   if (error instanceof UniqueMemberFieldError) {
     return error;
@@ -263,7 +294,14 @@ export function uniqueMemberFieldFromError(error: unknown): UniqueMemberFieldErr
     }
   }
 
-  if (prismaErrorCode(error) !== "P2002") {
+  const text = errorText(error).toLowerCase();
+  const duplicate =
+    prismaErrorCode(error) === "P2002" ||
+    mysqlErrno(error) === "1062" ||
+    text.includes("duplicate entry") ||
+    text.includes("unique constraint");
+
+  if (!duplicate) {
     return null;
   }
 
@@ -273,13 +311,13 @@ export function uniqueMemberFieldFromError(error: unknown): UniqueMemberFieldErr
       : undefined;
   const fields = Array.isArray(target) ? target.map(String) : typeof target === "string" ? [target] : [];
 
-  if (fields.some((item) => item.includes("phone"))) {
+  if (fields.some((item) => item.includes("phone")) || text.includes("phone")) {
     return new UniqueMemberFieldError("phone", uniqueFieldMessages.phone);
   }
 
-  if (fields.some((item) => item.includes("email"))) {
+  if (fields.some((item) => item.includes("email")) || text.includes("email")) {
     return new UniqueMemberFieldError("email", uniqueFieldMessages.email);
   }
 
-  return null;
+  return new UniqueMemberFieldError("phone", uniqueFieldMessages.phone);
 }

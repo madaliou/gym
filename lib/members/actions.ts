@@ -10,11 +10,11 @@ import {
   updateMemberRecord,
 } from "@/lib/services/member-service";
 import {
-  deleteStoredFile,
+  persistMemberPhoto,
   PhotoStorageError,
-  saveMemberPhoto,
+  removeStoredPhoto,
   storedPathFromPublicUrl,
-} from "@/lib/storage/local-folder";
+} from "@/lib/storage/member-photo";
 import { sendSubscriptionNotice } from "@/lib/email/subscription";
 import type { EmailDelivery } from "@/lib/email/types";
 import { subscriptionEndDate } from "@/lib/subscriptions/dates";
@@ -67,44 +67,42 @@ function fieldErrorsFromZod(issues: { path: PropertyKey[]; message: string }[]) 
   return fieldErrors;
 }
 
-function isUnwritableFilesystem(error: unknown) {
-  const code =
-    typeof error === "object" && error !== null && "code" in error ? String(error.code) : "";
-  return code === "EROFS" || code === "EACCES" || code === "EPERM";
-}
-
-async function persistMemberPhoto(photo: FormDataEntryValue | null) {
-  if (!(photo instanceof File) || photo.size === 0) {
-    return { photoUrl: null as string | null, storedPathname: null as string | null };
-  }
-
-  try {
-    const saved = await saveMemberPhoto(photo);
-    return { photoUrl: saved.url, storedPathname: saved.pathname };
-  } catch (error) {
-    if (error instanceof PhotoStorageError || (error instanceof Error && error.name === "PhotoStorageError")) {
-      throw error;
-    }
-
-    if (isUnwritableFilesystem(error)) {
-      return {
-        photoUrl: null,
-        storedPathname: null,
-        warning:
-          "La fiche a été enregistrée, mais la photo n'a pas pu être stockée sur l'hébergement actuel.",
-      };
-    }
-
-    throw error;
-  }
-}
-
 function revalidateMembers() {
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/members");
   revalidatePath("/dashboard/subscriptions");
   revalidatePath("/dashboard/subscriptions/expiring");
   revalidatePath("/dashboard/audit-logs");
+}
+
+function mutationMessage(error: unknown) {
+  if (error instanceof AuthRequiredError || error instanceof ForbiddenError) {
+    return error.message;
+  }
+
+  if (error instanceof Error && error.message === "Ce membre est introuvable.") {
+    return error.message;
+  }
+
+  if (error instanceof Error && error.message === "DATABASE_URL is not set.") {
+    return "La connexion à la base de données n'est pas configurée.";
+  }
+
+  const text = error instanceof Error ? `${error.message} ${error.cause instanceof Error ? error.cause.message : ""}` : String(error);
+
+  if (/can't connect|econnrefused|etimedout|p1001|p1017|server has gone away/i.test(text)) {
+    return "La base de données est injoignable. Réessayez dans un instant.";
+  }
+
+  if (/does not exist|p2021|p2022|unknown column|unknown table/i.test(text)) {
+    return "La base de données n'est pas à jour. Relancez les migrations.";
+  }
+
+  if (/data too long/i.test(text)) {
+    return "Une valeur est trop longue pour être enregistrée.";
+  }
+
+  return "Une erreur est survenue. Réessayez, ou enregistrez sans photo si le problème continue.";
 }
 
 function mutationFailure(error: unknown, storedPathname: string | null): MemberMutationResult {
@@ -130,12 +128,7 @@ function mutationFailure(error: unknown, storedPathname: string | null): MemberM
 
   return {
     ok: false,
-    message:
-      error instanceof AuthRequiredError || error instanceof ForbiddenError
-        ? error.message
-        : error instanceof Error && error.message === "Ce membre est introuvable."
-          ? error.message
-          : "Une erreur est survenue.",
+    message: mutationMessage(error),
   };
 }
 
@@ -193,7 +186,7 @@ export async function createMember(formData: FormData): Promise<MemberMutationRe
     };
   } catch (error) {
     if (storedPathname) {
-      await deleteStoredFile(storedPathname);
+      await removeStoredPhoto(storedPathname);
     }
 
     return mutationFailure(error, storedPathname);
@@ -249,14 +242,11 @@ export async function updateMember(memberId: string, formData: FormData): Promis
     });
 
     if (storedPathname && updated.previousPhotoUrl && updated.previousPhotoUrl !== photoUrl) {
-      const previousPath = storedPathFromPublicUrl(updated.previousPhotoUrl);
-      if (previousPath) {
-        await deleteStoredFile(previousPath);
-      }
+      await removeStoredPhoto(storedPathFromPublicUrl(updated.previousPhotoUrl));
     }
   } catch (error) {
     if (storedPathname) {
-      await deleteStoredFile(storedPathname);
+      await removeStoredPhoto(storedPathname);
     }
 
     return mutationFailure(error, storedPathname);
@@ -276,10 +266,7 @@ export async function deleteMember(memberId: string): Promise<MemberMutationResu
       entity: "Member",
       entityId: memberId,
     });
-    const photoPath = storedPathFromPublicUrl(deleted.photoUrl);
-    if (photoPath) {
-      await deleteStoredFile(photoPath);
-    }
+    await removeStoredPhoto(storedPathFromPublicUrl(deleted.photoUrl));
   } catch (error) {
     return mutationFailure(error, null);
   }
